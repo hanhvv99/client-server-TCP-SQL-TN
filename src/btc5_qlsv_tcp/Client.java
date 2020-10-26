@@ -41,7 +41,7 @@ public class Client {
             while(true){
                 if(mess.equals("Sinh viên đăng nhập thành công!")){
                     break;
-                } else if(mess.equals("Sinh viên đăng nhập thất bại!") || mess.equals("Sinh viên đã làm bài ngày hôm nay!")){
+                } else if(mess.equals("Sinh viên đăng nhập thất bại!")){
                     sc = new Scanner(System.in);
                     System.out.println("nhap username: ");
                     user = sc.nextLine();
@@ -85,7 +85,7 @@ public class Client {
                     arrList.add(dapan);
                 }
                 //in dap an
-                System.out.println("dap an cua bai thi la:");
+                System.out.println("Dap an cua bai thi la:");
                 int i=1;
                 for (String str : arrList) {
                     System.out.println(i+"-"+str);
@@ -97,6 +97,8 @@ public class Client {
                 System.out.println("Ma sinh vien: "+masv);
                 float diem = dis.readFloat();
                 System.out.print("Tong diem bt cua ban la: "+diem+" diem\n");
+                String mess2=dis.readUTF();
+                System.out.println(mess2+", điểm không thể lưu!");
             } catch (IOException e) {
                 System.out.println(e.getMessage());
             }

@@ -20,12 +20,13 @@ public class Server {
     public static Socket client = null;
     public static int port = 2010;
     public static int slCH = 10;
+    public static int soLanThi=2;//dk trong csdl
     public static Scanner sc = new Scanner(System.in);
     public static Connection cn = null;
     
-    public int kt(String ma,String ngaythi){
+    public int ktTonTaiTrongBD(String ma){
         cn = ConnectDB.SQLConnect();
-        String sql = "SELECT * FROM BANGDIEM WHERE MASV='"+ma+"' AND NGAYTHI=CONVERT(DATETIME,'"+ngaythi+"',103)";
+        String sql = "SELECT * FROM BANGDIEM WHERE MASV='"+ma+"'";
         int tonTai=0;
         try {
             PreparedStatement ps = cn.prepareStatement(sql);
@@ -38,12 +39,32 @@ public class Server {
             ps.close();
             cn.close();
         } catch (SQLException e) {
-            System.out.println("loi kiem tra!");
+            System.out.println(e.getMessage());
         }
         return tonTai;
     }
     
-    public String dangnhap(String user,String pass,String masv,String ngayThi){
+    public int ktsolanThi(String ma){
+        cn = ConnectDB.SQLConnect();
+        String sql = "SELECT MASV,LAN FROM BANGDIEM WHERE MASV='"+ma+"'AND LAN='"+soLanThi+"'";
+        int tonTai=0;
+        try {
+            PreparedStatement ps = cn.prepareStatement(sql);
+            ResultSet rs = ps.executeQuery();
+            if(rs.next())
+            {
+                tonTai = 1;
+            }
+            rs.close();
+            ps.close();
+            cn.close();
+        } catch (SQLException e) {
+            System.out.println(e.getMessage());
+        }
+        return tonTai;
+    }
+    
+    public String dangnhap(String user,String pass){
         cn = ConnectDB.SQLConnect();
         String sql = "SELECT * FROM SINHVIEN sv WHERE sv.UserName='"+user+"' AND sv.PassWord='"+pass+"'";
         String mess = null;
@@ -52,8 +73,6 @@ public class Server {
             ResultSet rs = ps.executeQuery();
             if(rs.next()){
                 mess ="Sinh viên đăng nhập thành công!";
-            }else if (s.kt(masv, ngayThi)==1){
-                mess="Sinh viên đã làm bài ngày hôm nay!";
             }else {
                 mess="Sinh viên đăng nhập thất bại!";
             }
@@ -61,7 +80,7 @@ public class Server {
             ps.close();
             cn.close();
         } catch (SQLException e) {
-            System.out.println("loi dang nhap!");
+            System.out.println(e.getMessage());
         }
         return mess;
     }
@@ -80,27 +99,37 @@ public class Server {
             ps.close();
             cn.close();
         } catch (SQLException e) {
-            System.out.println("Loi khong co ma sv nay");
+            System.out.println(e.getMessage());
         }
         return masv;
     }
     
-    public boolean insertBD(String masv,int lan,String ngaythi,float diem,String baithi){
+    public void insertBD(String masv,int lan,String ngaythi,float diem,String baithi){
         cn = ConnectDB.SQLConnect();
         String sql = "EXEC SP_INS_BANGDIEM '"+masv+"','"+lan+"','"+ngaythi+"','"+diem+"','"+baithi+"'";
         try {
-            PreparedStatement ps = cn.prepareCall(sql);
+            PreparedStatement ps = cn.prepareStatement(sql);
             ps.executeUpdate();
-            
+            System.out.println("Them bang diem thanh cong!");
             ps.close();
             cn.close();
-            return true;
         } catch (SQLException e) {
-            if(s.kt(masv, ngaythi)==1){
-                System.out.println("Sinh vien "+masv+"da thi ngay hom nay, khong the luu bang diem!");
-            }
+            System.out.println("Them bang diem that bai!");
         }
-        return false;
+    }
+    
+    public void updateBD(String masv,int lan,String ngaythi,float diem,String baithi){
+        cn = ConnectDB.SQLConnect();
+        String sql = "EXEC SP_UPD_BANGDIEM '"+masv+"','"+lan+"','"+ngaythi+"','"+diem+"','"+baithi+"'";
+        try {
+            PreparedStatement ps = cn.prepareStatement(sql);
+            ps.executeUpdate();
+            System.out.println("Cap nhat bang diem thanh cong!");
+            ps.close();
+            cn.close();
+        } catch (SQLException e) {
+            System.out.println("Cap nhat bang diem that bai!");
+        }
     }
     
     public static void main(String[] args) throws IOException{
@@ -116,26 +145,20 @@ public class Server {
             String user = dis.readUTF();
             String pass = dis.readUTF();
             
-            String masv=s.hienthiMSV(user);
-            int lan=1;
-            String ngayThi=(String.valueOf(new SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date())));
-            float diem=0;
-            String baiThi="Thu "+lan;
-            
-            String mess=s.dangnhap(user,pass,masv,ngayThi);
+            String mess=s.dangnhap(user,pass);
             while(true){
                 dos.writeUTF(mess);
                 System.out.println(mess);
                 if(mess.equals("Sinh viên đăng nhập thành công!")){
-                    break;
-                } else if(mess.equals("Sinh viên đăng nhập thất bại!") || mess.equals("Sinh viên đã làm bài ngày hôm nay!")){
+                        break;
+                } else if(mess.equals("Sinh viên đăng nhập thất bại!")){
                     user = dis.readUTF();
                     pass = dis.readUTF();
-                    mess=s.dangnhap(user,pass,masv,ngayThi);
+                    mess=s.dangnhap(user,pass);
                 } 
             }
-            
             //hien cau hoi
+            float diem=0;
             cn = ConnectDB.SQLConnect();
             String sql = "SELECT TOP "+slCH+" BODE.CAUHOI, BODE.NOIDUNG, BODE.A, BODE.B, BODE.C, BODE.D, BODE.DAP_AN FROM BODE ORDER BY NEWID()";
             try {
@@ -148,13 +171,13 @@ public class Server {
                     String c= rs.getString("C");
                     String d= rs.getString("D");
                     String dapan = rs.getString("DAP_AN");
-                    
+
                     dos.writeUTF(noidung);
                     dos.writeUTF(a);
                     dos.writeUTF(b);
                     dos.writeUTF(c);
                     dos.writeUTF(d);
-                    
+
                     String traloi=dis.readUTF();
                     if(traloi.equals(dapan)){
                         diem = diem+1;
@@ -163,18 +186,31 @@ public class Server {
                     }
                     dos.writeUTF(dapan);//GUI DAP AN qua client
                 }
+                String masv=s.hienthiMSV(user);
+                masv=s.hienthiMSV(user);
                 dos.writeUTF(masv);
                 float diemlamtron = Math.round(diem * 100)/100;
                 dos.writeFloat(diemlamtron);
-                if(s.insertBD(masv, lan, ngayThi, diemlamtron, baiThi)==true){
-                    System.out.println("them bang diem thanh cong!");
-                    lan++;
+                int lan=1;
+                String baiThi="Thu "+lan;
+                String ngayThi=(String.valueOf(new SimpleDateFormat("dd/MM/yyyy").format(new java.util.Date())));
+                String mess2;
+                if(s.ktTonTaiTrongBD(masv)==1){
+                    if(s.ktsolanThi(masv)==1){
+                        System.out.println("Khong the cap nhat diem, chi duoc thi toi da 2 lan, sinh vien "+masv+"da thi 2 lan!");
+                        mess2="Sinh vien da thi 2 lan!";
+                        dos.writeUTF(mess2);
+                    }else{
+                        lan++;
+                        baiThi="Thu "+lan;
+                        s.updateBD(masv, lan, ngayThi, diemlamtron, baiThi);
+                    }
                 } else {
-                    System.out.println("them bang diem that bai!");
+                    s.insertBD(masv, lan, ngayThi, diemlamtron, baiThi);
                 }
             } catch (SQLException e) {
                 System.out.println("loi ket noi cau hoi");
-            }         
+            } 
         } catch (IOException e) {
             System.out.println("server ngung ket noi");
         }
